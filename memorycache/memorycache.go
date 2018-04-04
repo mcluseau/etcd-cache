@@ -9,11 +9,13 @@ import (
 
 var _ etcdcache.Backend = &Cache{}
 
-// KeyToIdFunc tranforms an etcd key to the object's ID. Note that `etcdKey` already has the prefix removed.
-type KeyToIdFunc func(etcdKey string) (key string)
+// KeyToIdFunc tranforms an etcd key to the object's ID. Note that `key` already has the prefix removed.
+type KeyToIdFunc func(key string) (id string)
+
+func KeyAsID(key string) (id string) { return key }
 
 // UnmarshalFunc parses an etcd value to an object.
-type UnmarshalFunc func(data []byte) (object interface{})
+type UnmarshalFunc func(id string, data []byte) (object interface{})
 
 type Cache struct {
 	prefix    string
