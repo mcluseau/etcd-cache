@@ -7,12 +7,12 @@ import (
 	etcdcache "github.com/mcluseau/etcd-cache"
 )
 
-var _ etcdcache.Backend = &Cache{}
-
 // KeyToIdFunc tranforms an etcd key to the object's ID. Note that `key` already has the prefix removed.
 type KeyToIdFunc func(key string) (id string)
 
 func KeyAsID(key string) (id string) { return key }
+
+var _ KeyToIdFunc = KeyAsID
 
 // UnmarshalFunc parses an etcd value to an object.
 type UnmarshalFunc func(id string, data []byte) (object interface{})
@@ -24,6 +24,8 @@ type Cache struct {
 	l         sync.RWMutex
 	db        map[string]interface{}
 }
+
+var _ etcdcache.Backend = &Cache{}
 
 func New(prefix string, keyToId KeyToIdFunc, unmarshal UnmarshalFunc) *Cache {
 	return &Cache{
@@ -50,13 +52,16 @@ func (c *Cache) Set(key string, value []byte) {
 	c.l.Lock()
 	defer c.l.Unlock()
 
-	c.db[c.keyToId(key[len(c.prefix):])] = c.unmarshal(value)
+	id := c.keyToId(key[len(c.prefix):])
+	c.db[id] = c.unmarshal(id, value)
 }
+
 func (c *Cache) Delete(key string, value []byte) {
 	c.l.Lock()
 	defer c.l.Unlock()
 
 	delete(c.db, c.keyToId(key[len(c.prefix):]))
 }
+
 func (c *Cache) LoadRev() int64    { return 0 }
 func (c *Cache) SaveRev(rev int64) {}
