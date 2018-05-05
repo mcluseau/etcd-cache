@@ -65,3 +65,5 @@ func (c *Cache) Delete(key string, value []byte) {
 
 func (c *Cache) LoadRev() int64    { return 0 }
 func (c *Cache) SaveRev(rev int64) {}
+
+func (c *Cache) Close() {}

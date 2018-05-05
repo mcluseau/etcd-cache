@@ -15,6 +15,8 @@ type Backend interface {
 
 	LoadRev() int64
 	SaveRev(rev int64)
+
+	Close()
 }
 
 // Sync synchronizes a cache backend with and etcd.
