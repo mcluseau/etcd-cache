@@ -58,18 +58,23 @@ func (c *Cache) Sync(logf etcdcache.LogFunc, client *clientv3.Client, wg *sync.W
 	etcdcache.Sync(c.prefix, c, logf, client, wg)
 }
 
-func (c *Cache) View(fn func(tx *bolt.Tx, bucket *bolt.Bucket) error) error {
+func (c *Cache) View(fn func(bucket *bolt.Bucket) error) error {
 	return c.db.View(func(tx *bolt.Tx) error {
 		b := tx.Bucket(bucketName)
 
-		return fn(tx, b)
+		return fn(b)
 	})
 }
 
 func (c *Cache) Set(key string, value []byte) {
 	err := c.db.Update(func(tx *bolt.Tx) error {
 		b := tx.Bucket(bucketName)
-		return b.Put([]byte(key), value)
+
+		if err := b.Put([]byte(key), value); err != nil {
+			return err
+		}
+
+		return tx.Commit()
 	})
 	if err != nil {
 		log.Fatal("boltdb cache: set failed: ", err)
@@ -79,7 +84,12 @@ func (c *Cache) Set(key string, value []byte) {
 func (c *Cache) Delete(key string, value []byte) {
 	err := c.db.Update(func(tx *bolt.Tx) error {
 		b := tx.Bucket(bucketName)
-		return b.Delete([]byte(key))
+
+		if err := b.Delete([]byte(key)); err != nil {
+			return err
+		}
+
+		return tx.Commit()
 	})
 	if err != nil {
 		log.Fatal("boltdb cache: delete failed: ", err)
@@ -118,7 +128,12 @@ func (c *Cache) SaveRev(rev int64) {
 
 	err = c.db.Update(func(tx *bolt.Tx) error {
 		b := tx.Bucket(metaBucketName)
-		return b.Put([]byte("rev"), v)
+
+		if err := b.Put([]byte("rev"), v); err != nil {
+			return err
+		}
+
+		return tx.Commit()
 	})
 
 	if err != nil {
