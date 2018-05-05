@@ -21,6 +21,7 @@ var (
 type Cache struct {
 	prefix string
 	db     *bolt.DB
+	tx     *bolt.Tx
 }
 
 var _ etcdcache.Backend = &Cache{}
@@ -54,6 +55,25 @@ func New(prefix, path string) (*Cache, error) {
 	}, nil
 }
 
+func (c *Cache) begin() {
+	if c.tx == nil {
+		tx, err := c.db.Begin(true)
+		if err != nil {
+			panic(fmt.Errorf("failed to start transaction: %v", err))
+		}
+
+		c.tx = tx
+	}
+}
+
+func (c *Cache) commit() {
+	if err := c.tx.Commit(); err != nil {
+		panic(fmt.Errorf("failed to commit transaction: %v", err))
+	}
+
+	c.tx = nil
+}
+
 func (c *Cache) Sync(logf etcdcache.LogFunc, client *clientv3.Client, wg *sync.WaitGroup) {
 	etcdcache.Sync(c.prefix, c, logf, client, wg)
 }
@@ -67,24 +87,22 @@ func (c *Cache) View(fn func(bucket *bolt.Bucket) error) error {
 }
 
 func (c *Cache) Set(key string, value []byte) {
-	err := c.db.Update(func(tx *bolt.Tx) error {
-		b := tx.Bucket(bucketName)
+	c.begin()
 
-		return b.Put([]byte(key[len(c.prefix):]), value)
-	})
-	if err != nil {
-		log.Fatal("boltdb cache: set failed: ", err)
+	b := c.tx.Bucket(bucketName)
+
+	if err := b.Put([]byte(key[len(c.prefix):]), value); err != nil {
+		panic(fmt.Errorf("put failed: %v", err))
 	}
 }
 
 func (c *Cache) Delete(key string, value []byte) {
-	err := c.db.Update(func(tx *bolt.Tx) error {
-		b := tx.Bucket(bucketName)
+	c.begin()
 
-		return b.Delete([]byte(key))
-	})
-	if err != nil {
-		log.Fatal("boltdb cache: delete failed: ", err)
+	b := c.tx.Bucket(bucketName)
+
+	if err := b.Delete([]byte(key)); err != nil {
+		panic(fmt.Errorf("delete failed: ", err))
 	}
 }
 
@@ -114,20 +132,20 @@ func (c *Cache) LoadRev() (rev int64) {
 }
 
 func (c *Cache) SaveRev(rev int64) {
+	c.begin()
+
 	v, err := json.Marshal(rev)
 	if err != nil {
 		panic(fmt.Errorf("failed to marshal rev: %v", err))
 	}
 
-	err = c.db.Update(func(tx *bolt.Tx) error {
-		b := tx.Bucket(metaBucketName)
+	b := c.tx.Bucket(metaBucketName)
 
-		return b.Put([]byte("rev"), v)
-	})
-
-	if err != nil {
+	if err := b.Put([]byte("rev"), v); err != nil {
 		panic(fmt.Errorf("failed to update db: %v", err))
 	}
+
+	c.commit()
 
 	if err := c.db.Sync(); err != nil {
 		log.Print("boltcache: db sync failed: ", err)
