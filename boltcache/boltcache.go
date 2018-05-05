@@ -70,11 +70,7 @@ func (c *Cache) Set(key string, value []byte) {
 	err := c.db.Update(func(tx *bolt.Tx) error {
 		b := tx.Bucket(bucketName)
 
-		if err := b.Put([]byte(key), value); err != nil {
-			return err
-		}
-
-		return tx.Commit()
+		return b.Put([]byte(key), value)
 	})
 	if err != nil {
 		log.Fatal("boltdb cache: set failed: ", err)
@@ -85,11 +81,7 @@ func (c *Cache) Delete(key string, value []byte) {
 	err := c.db.Update(func(tx *bolt.Tx) error {
 		b := tx.Bucket(bucketName)
 
-		if err := b.Delete([]byte(key)); err != nil {
-			return err
-		}
-
-		return tx.Commit()
+		return b.Delete([]byte(key))
 	})
 	if err != nil {
 		log.Fatal("boltdb cache: delete failed: ", err)
@@ -129,11 +121,7 @@ func (c *Cache) SaveRev(rev int64) {
 	err = c.db.Update(func(tx *bolt.Tx) error {
 		b := tx.Bucket(metaBucketName)
 
-		if err := b.Put([]byte("rev"), v); err != nil {
-			return err
-		}
-
-		return tx.Commit()
+		return b.Put([]byte("rev"), v)
 	})
 
 	if err != nil {
