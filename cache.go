@@ -48,6 +48,8 @@ func Sync(prefix string, backend Backend, logf LogFunc, client *clientv3.Client,
 			}
 			rev = get.Header.Revision
 		}
+
+		backend.SaveRev(rev)
 	}
 
 	if wg != nil {

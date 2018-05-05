@@ -70,7 +70,7 @@ func (c *Cache) Set(key string, value []byte) {
 	err := c.db.Update(func(tx *bolt.Tx) error {
 		b := tx.Bucket(bucketName)
 
-		return b.Put([]byte(key), value)
+		return b.Put([]byte(key[len(c.prefix):]), value)
 	})
 	if err != nil {
 		log.Fatal("boltdb cache: set failed: ", err)
@@ -109,6 +109,7 @@ func (c *Cache) LoadRev() (rev int64) {
 	if err != nil {
 		panic(fmt.Errorf("boltdb cache: failed to read rev: %v", err))
 	}
+
 	return
 }
 
